@@ -13,11 +13,8 @@ const ytDlpBin = path.resolve(
 
 // Use a temp directory on the real disk instead of os.tmpdir() (which is a
 // size-limited tmpfs). Large video merges need 2x the file size (source + output).
-const TEMP_DIR = path.join(os.tmpdir(), "media-mint-temp");
-
-if (!fs.existsSync(TEMP_DIR)) {
-  fs.mkdirSync(TEMP_DIR, { recursive: true });
-}
+const TEMP_DIR = path.resolve(__dirname, "../.temp");
+if (!fs.existsSync(TEMP_DIR)) fs.mkdirSync(TEMP_DIR, { recursive: true });
 
 // Track the active download so it can be cancelled
 let activeDownload = null;
