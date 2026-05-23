@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { io } from "socket.io-client";
 
-const socket = io("http://localhost:5000");
+const socket = io(import.meta.env.BACKEND_URL || "http://localhost:5000");
 
 const VideoCard = ({ value, url }) => {
   const [downloadType, setDownloadType] = useState("video");
@@ -48,7 +48,7 @@ const VideoCard = ({ value, url }) => {
 
     try {
       const response = await fetch(
-        "http://localhost:5000/api/videos/download",
+        `${import.meta.env.BACKEND_URL || "http://localhost:5000"}/api/videos/download`,
         {
           method: "POST",
           headers: {
@@ -67,9 +67,8 @@ const VideoCard = ({ value, url }) => {
 
       // Extract filename from Content-Disposition header, or use video title
       const contentDisposition = response.headers.get("content-disposition");
-      let filename = downloadType === "audio"
-        ? `${value.title}.mp3`
-        : `${value.title}.mp4`;
+      let filename =
+        downloadType === "audio" ? `${value.title}.mp3` : `${value.title}.mp4`;
 
       if (contentDisposition) {
         const filenameMatch = contentDisposition.match(
@@ -116,9 +115,12 @@ const VideoCard = ({ value, url }) => {
       }
 
       // Tell the backend to kill yt-dlp and clean up
-      await fetch("http://localhost:5000/api/videos/cancel", {
-        method: "POST",
-      });
+      await fetch(
+        `${import.meta.env.BACKEND_URL || "http://localhost:5000"}/api/videos/cancel`,
+        {
+          method: "POST",
+        },
+      );
     } catch (error) {
       console.log("Cancel error:", error);
     }
@@ -290,10 +292,9 @@ const VideoCard = ({ value, url }) => {
                     {getStatusLabel()}
                   </span>
 
-                  <span
-                    className={`text-sm font-semibold ${getStatusColor()}`}
-                  >
-                    {downloadStatus === "error" || downloadStatus === "cancelled"
+                  <span className={`text-sm font-semibold ${getStatusColor()}`}>
+                    {downloadStatus === "error" ||
+                    downloadStatus === "cancelled"
                       ? "✕"
                       : `${progress.toFixed(1)}%`}
                   </span>
