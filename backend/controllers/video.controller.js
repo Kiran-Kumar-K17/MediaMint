@@ -28,34 +28,50 @@ export const getVideoInfo = async (req, res) => {
       preferFreeFormats: true,
     });
 
+    const bestAudio = info.formats
+      .filter((f) => f.acodec !== "none" && f.vcodec === "none")
+      .sort((a, b) => (b.abr || 0) - (a.abr || 0))[0];
+
     const videoFormats = info.formats
       .filter((f) => f.vcodec !== "none")
-      .sort((a, b) => b.height - a.height) // highest quality first
+      .sort((a, b) => b.height - a.height)
       .filter(
         (f, index, arr) =>
-          index === arr.findIndex((t) => t.height === f.height), // dedupe by height
+          index === arr.findIndex((t) => t.height === f.height),
       )
       .map((f) => ({
         quality: f.height + "p",
         formatId: f.format_id,
         ext: f.ext,
+
         filesize: f.filesize,
+        filesizeApprox: f.filesize_approx,
+
+        totalFilesize:
+          (f.filesize || f.filesize_approx || 0) +
+          (bestAudio?.filesize || bestAudio?.filesize_approx || 0),
+
         url: f.url,
       }));
-
     const audioFormats = info.formats
       .filter((f) => f.acodec !== "none" && f.vcodec === "none")
-      .sort((a, b) => (b.abr || 0) - (a.abr || 0)) // highest bitrate first
+      .sort((a, b) => (b.abr || 0) - (a.abr || 0))
       .filter(
         (f, index, arr) =>
           index ===
-          arr.findIndex((t) => Math.round(t.abr) === Math.round(f.abr)), // dedupe by bitrate
+          arr.findIndex((t) => Math.round(t.abr) === Math.round(f.abr)),
       )
       .map((f) => ({
         quality: f.abr ? `${Math.round(f.abr)}kbps` : "audio",
+
         formatId: f.format_id,
         ext: f.ext,
+
         filesize: f.filesize,
+        filesizeApprox: f.filesize_approx,
+
+        totalFilesize: f.filesize || f.filesize_approx || 0,
+
         url: f.url,
       }));
 

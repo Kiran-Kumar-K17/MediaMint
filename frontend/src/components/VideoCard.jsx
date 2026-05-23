@@ -1,10 +1,8 @@
 import { useState } from "react";
-import { API_URL } from "../api/api.js";
 
 const VideoCard = ({ value, url }) => {
   const [downloadType, setDownloadType] = useState("video");
   const [selectedFormat, setSelectedFormat] = useState("");
-  console.log(value);
 
   const handleDownload = async () => {
     try {
@@ -43,6 +41,16 @@ const VideoCard = ({ value, url }) => {
     } catch (error) {
       console.log(error);
     }
+  };
+
+  const formatSize = (bytes) => {
+    if (!bytes) return "Unknown";
+
+    const gb = bytes / (1024 * 1024 * 1024);
+
+    return gb >= 1
+      ? `${gb.toFixed(2)} GB`
+      : `${Math.ceil(bytes / (1024 * 1024))} MB`;
   };
   return (
     <div>
@@ -105,8 +113,7 @@ const VideoCard = ({ value, url }) => {
                   <option value="">Select Quality</option>
                   {value.videoFormats.map((video) => (
                     <option key={video.formatId} value={video.formatId}>
-                      {video.quality} -{" "}
-                      {Math.ceil(video.filesize / (1024 * 1024))} MB
+                      {video.quality} - {formatSize(video.totalFilesize)}
                     </option>
                   ))}
                 </select>
@@ -127,8 +134,7 @@ const VideoCard = ({ value, url }) => {
                   <option value="">Select Quality</option>
                   {value.audioFormats.map((audio) => (
                     <option key={audio.formatId} value={audio.formatId}>
-                      {audio.quality} -{" "}
-                      {Math.ceil(audio.filesize / (1024 * 1024))} MB
+                      {audio.quality} - {formatSize(audio.totalFilesize)}
                     </option>
                   ))}
                 </select>
