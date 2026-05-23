@@ -2,6 +2,8 @@ import ytdlp from "yt-dlp-exec";
 import { spawn } from "child_process";
 import { fileURLToPath } from "url";
 import path from "path";
+import fs from "fs";
+import os from "os";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ytDlpBin = path.resolve(
@@ -27,7 +29,7 @@ export const getVideoInfo = async (req, res) => {
     });
 
     const videoFormats = info.formats
-      .filter((f) => f.vcodec !== "none" && f.height >= 144 && f.height <= 1440)
+      .filter((f) => f.vcodec !== "none")
       .sort((a, b) => b.height - a.height) // highest quality first
       .filter(
         (f, index, arr) =>
@@ -79,7 +81,7 @@ export const downloadVideo = async (req, res) => {
 
     if (!url || !formatId) {
       return res.status(400).json({
-        message: "Missing fields",
+        error: "Missing fields",
       });
     }
 
@@ -87,47 +89,89 @@ export const downloadVideo = async (req, res) => {
       dumpSingleJson: true,
     });
 
-    console.log(`Fetched: ${info.title}`);
+    const safeTitle = info.title.replace(/[<>:"/\\|?*]+/g, "");
 
-    const fileName =
-      type === "audio" ? `${info.title}.mp3` : `${info.title}.mkv`;
+    const tempPath = path.join(
+      os.tmpdir(),
+      `${Date.now()}-${safeTitle}.%(ext)s`,
+    );
 
-    res.setHeader("Content-Disposition", `attachment; filename="${fileName}"`);
-
-    res.setHeader(
-      "Content-Type",
-      type === "audio" ? "audio/mpeg" : "video/x-matroska",
+    const outputFile = path.join(
+      os.tmpdir(),
+      `${Date.now()}-${
+        type === "audio" ? `${safeTitle}.mp3` : `${safeTitle}.mkv`
+      }`,
     );
 
     const args =
       type === "audio"
-        ? ["-x", "--audio-format", "mp3", "-o", "-", url]
+        ? [
+            "-f",
+            formatId,
+
+            "--downloader",
+            "aria2c",
+
+            "--downloader-args",
+            "aria2c:-x 16 -s 16 -k 1M",
+
+            "-x",
+            "--audio-format",
+            "mp3",
+
+            "-o",
+            outputFile,
+
+            url,
+          ]
         : [
             "-f",
             `${formatId}+bestaudio`,
+
+            "--downloader",
+            "aria2c",
+
+            "--downloader-args",
+            "aria2c:-x 16 -s 16 -k 1M",
+
             "--merge-output-format",
             "mkv",
+
+            "--concurrent-fragments",
+            "8",
+
             "-o",
-            "-",
+            outputFile,
+
             url,
           ];
 
     const ytDlpProcess = spawn(ytDlpBin, args);
 
-    ytDlpProcess.stdout.pipe(res);
-
     ytDlpProcess.stderr.on("data", (data) => {
       console.log(data.toString());
     });
 
-    ytDlpProcess.on("close", (code) => {
-      console.log(`yt-dlp exited with code ${code}`);
+    ytDlpProcess.on("close", async (code) => {
+      if (code !== 0) {
+        return res.status(500).json({
+          error: "Download failed",
+        });
+      }
+
+      res.download(outputFile, (err) => {
+        fs.unlinkSync(outputFile);
+
+        if (err) {
+          console.log(err);
+        }
+      });
     });
   } catch (error) {
-    console.error(error);
+    console.log(error);
 
     res.status(500).json({
-      error: "Failed to download",
+      error: "Failed",
     });
   }
 };
